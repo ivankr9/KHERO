@@ -15,6 +15,7 @@ else:
     filepy = sys.argv[0]
 fullpath = os.path.abspath(filepy)
 
+#PTH_APP = 'D:/!BOOGMARKs/a/x9009'
 PTH_APP = os.path.dirname(fullpath)
 
 RESOURCES = Resources(PTH_APP, "resources")
@@ -22,7 +23,8 @@ RESOURCES = Resources(PTH_APP, "resources")
 pth_to_resources = PTH_APP + '/resources'
 items = os.listdir(pth_to_resources)
 
-RATE = 35000
+RATE = 44100
+
 
 if ss.SDL_Init(ss.SDL_INIT_AUDIO) != 0:
     raise RuntimeError("Cannot initialize audio system: {}".format(ss.SDL_GetError()))
@@ -30,7 +32,7 @@ if ss.SDL_Init(ss.SDL_INIT_AUDIO) != 0:
 if sm.Mix_OpenAudio(RATE, sm.MIX_DEFAULT_FORMAT, 2, 1):
     raise RuntimeError("Cannot open mixed audio: {}".format(sm.Mix_GetError()))
     
-sm.Mix_AllocateChannels(16) # max is 8
+sm.Mix_AllocateChannels(9) # max is 9
 
 factory = se.SpriteFactory(se.SOFTWARE)
 sprite = factory.from_image(RESOURCES.get_path("background.png"))
@@ -113,7 +115,9 @@ def play_bass_sample(e, press_status, numberkey, sample, list_bass_samples_to_mu
     
 channels_pressed = {'q': None, 'w': None, 'e': None, 'r': None, 't': None, 'y': None, 'u': None, 'i': None, 'o': None, 'p': None, '[': None, ']': None,
                    '1': None, '2': None, '3': None, '4': None, '5': None, '6': None, '7': None, '8': None, '9': None, '0': None, '-': None, '=': None}
+
 channels_to_decey = []
+
  
 def play_organ_sample(e, pressed, smpls_organ_dict, channels_pressed, numberkey=None, keybname='', notenamekey='', VOL=0):
     if int(e.key.keysym.sym) == numberkey and not pressed:
@@ -124,11 +128,14 @@ def play_organ_sample(e, pressed, smpls_organ_dict, channels_pressed, numberkey=
             vol_dist_rand = random.randint(80, 140)
             sm.Mix_SetPosition(ch, stereo_rand, vol_dist_rand)
             channels_pressed[keybname] = ch
+            
             pressed = True
     if int(e.key.keysym.sym) == numberkey and pressed:
         if e.type == ss.SDL_KEYUP:
+            sm.Mix_VolumeChunk(smpls_organ_dict[notenamekey], VOL)
             ch = channels_pressed[keybname]
-            channels_to_decey.append([ch, smpls_organ_dict[notenamekey], VOL])
+            sm.Mix_HaltChannel(ch)
+            channels_to_decey.append([notenamekey , smpls_organ_dict[notenamekey], VOL])
             pressed = False
     return pressed
 
@@ -249,7 +256,6 @@ def run():
                 tick_prev1,tick_prev2,tick_prev3,tick_prev4 = 0,0,0,0
                 tap_counter = 0
             if metronome_is_play:
-                #print('metro')
                 sm.Mix_VolumeChunk(smpl_d_hihat, VOL-10)
                 ch = sm.Mix_PlayChannel(-1, smpl_d_hihat, 0)
                 mcounter = interval
@@ -258,9 +264,6 @@ def run():
             if event.type == ss.SDL_QUIT:
                 running = False
                 break
-            #if event.type == ss.SDL_KEYDOWN:
-            #    print('keysum:', event.key.keysym.sym, ss.SDL_GetKeyName(event.key.keysym.sym).lower())
-            #    print(event.key.keysym.sym)
             
             if int(event.key.keysym.sym) == 32: # MUTE BASS
                 if event.type == ss.SDL_KEYDOWN: 
@@ -327,8 +330,8 @@ def run():
             key_down_backspace = play_stop_sample(event, key_down_backspace, smpl_d_ohihat, 8, channel_force=8, VOL=VOL)
             key_down_down = play_stop_sample(event, key_down_down, smpl_d_ohihat2, 1073741905, channel_force=8, VOL=VOL)
 
-            key_down_space = play_stop_sample(event, key_down_space, smpl_d_bass, 9, volumeadd=30, VOL=VOL) # TAB
-            key_down_left = play_stop_sample(event, key_down_left, smpl_d_bass2, 1073741904, volumeadd=30, VOL=VOL)
+            key_down_space = play_stop_sample(event, key_down_space, smpl_d_bass, 9, volumeadd=40, VOL=VOL) # TAB
+            key_down_left = play_stop_sample(event, key_down_left, smpl_d_bass2, 1073741904, volumeadd=40, VOL=VOL)
 
             key_down_lctrl = play_stop_sample(event, key_down_lctrl, smpl_d_snare, 1073742048, VOL=VOL)
             key_down_right = play_stop_sample(event, key_down_right, smpl_d_snare, 1073741903, VOL=VOL)
@@ -389,13 +392,18 @@ def run():
             organ_down_0 = play_organ_sample(event, organ_down_0, smpls_organ_dict, channels_pressed, 48, '0', 'A1', VOL=VOL)
             organ_down_minus = play_organ_sample(event, organ_down_minus, smpls_organ_dict, channels_pressed, 45, '-', 'F1', VOL=VOL)
             organ_down_equal = play_organ_sample(event, organ_down_equal, smpls_organ_dict, channels_pressed, 61, '=', 'D2', VOL=VOL)
-        
+
         for ch_dec in channels_to_decey:
-            ch_dec[2] -= 0.005
-            sm.Mix_VolumeChunk(ch_dec[1], int(ch_dec[2]))
-            if ch_dec[2] < 2:
-                sm.Mix_HaltChannel(ch_dec[0])
+            ch_dec[2] -= 0.002
+            if event.type == ss.SDL_KEYUP:
+                sm.Mix_VolumeChunk(smpls_organ_dict[ch_dec[0]], 10)
+                ch = sm.Mix_PlayChannel(6, smpls_organ_dict[ch_dec[0]], 0)
+                stereo_rand = random.randint(-50, 50)
+                vol_dist_rand = random.randint(80, 140)
+                sm.Mix_SetPosition(ch, stereo_rand, vol_dist_rand)
+            if ch_dec[2] < 5:
                 channels_to_decey.remove(ch_dec)
+
     return 0
 
 run()
